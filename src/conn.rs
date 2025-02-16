@@ -253,7 +253,9 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
                 self.endpoint = Endpoint::Initiator((syn_seq_num, 1));
             }
             Endpoint::Acceptor((syn, syn_ack)) => {
+
                 let state = self.state_packet().unwrap();
+                tracing::debug!("Acceptor {:?}", state);
                 self.socket_events
                     .send(SocketEvent::Outgoing((state, self.peer.clone())))
                     .unwrap();
@@ -287,6 +289,9 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
                     sent_packets,
                     closing: None,
                 };
+
+                tracing::debug!("State {:?}",  self.state);
+
             }
         }
 
