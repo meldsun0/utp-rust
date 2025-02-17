@@ -237,7 +237,7 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
         mut writes: mpsc::UnboundedReceiver<Write>,
         mut shutdown: oneshot::Receiver<()>,
     ) -> io::Result<()> {
-        tracing::debug!("uTP conn starting... {:?}", self.peer);
+        tracing::debug!("uTP conn starting... {:?}", self.cid);
 
         // If we are the initiating endpoint, then send the SYN. If we are the accepting endpoint,
         // then send the SYN-ACK.
@@ -255,7 +255,9 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
             Endpoint::Acceptor((syn, syn_ack)) => {
 
                 let state = self.state_packet().unwrap();
-                tracing::debug!("Acceptor {:?}", state);
+                tracing::debug!(" Endpoint::Acceptor syn {:?}", syn);
+                tracing::debug!(" Endpoint::Acceptor  syn_ack {:?}",  syn_ack);
+                tracing::debug!(" Endpoint::Acceptor {:?}", state);
                 self.socket_events
                     .send(SocketEvent::Outgoing((state, self.peer.clone())))
                     .unwrap();
@@ -769,7 +771,7 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
             PacketType::Fin => self.on_fin(packet.seq_num(), packet.payload()),
             PacketType::Reset => self.on_reset(),
         }
-
+        tracing::trace!("Packet type {:?}", packet.packet_type());
         // Mark sent packets as acked, using the received ack_num
         match packet.packet_type() {
             PacketType::Syn | PacketType::Reset => {}
@@ -778,7 +780,7 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
                 if let Err(err) =
                     self.process_ack(packet.ack_num(), packet.selective_ack(), delay, now)
                 {
-                    tracing::warn!(%err, ?packet, "ack does not correspond to known seq_num");
+                    tracing::trace!(%err, ?packet, "ack does not correspond to known seq_num");
                 }
             }
         }
@@ -902,8 +904,12 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
         let err = match self.endpoint {
             // If we are the accepting endpoint, then check whether the SYN is a retransmission. A
             // non-matching sequence number is incorrect behavior.
+
             Endpoint::Acceptor((syn, ..)) => {
+                tracing::debug!("onsync {:?}", seq_num);
                 if seq_num != syn {
+
+                    tracing::debug!("onsync {:?}", syn);
                     Some(Error::InvalidSyn)
                 } else {
                     None
@@ -957,6 +963,8 @@ impl<const N: usize, P: ConnectionPeer> Connection<N, P> {
         if data.is_empty() {
             self.reset(Error::EmptyDataPayload);
         }
+        tracing::debug!("ondata {:?}", seq_num);
+
 
         match &mut self.state {
             State::Connecting(..) => match self.endpoint {

@@ -181,6 +181,7 @@ impl SentPackets {
     ) -> Result<(CircularRangeInclusive, Vec<u16>), SentPacketsError> {
         let range = self.seq_num_range();
         if !range.contains(ack_num) {
+            tracing::trace!("on_ack  {:?}", range);
             return Err(SentPacketsError::InvalidAckNum);
         }
 
